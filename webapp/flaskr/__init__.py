@@ -28,11 +28,12 @@ def create_app(test_config=None):
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
-    
+
     from . import db
     db.init_app(app)
-    if not os.path.exists(app.config['DATABASE']):
-        db.init_db()
+    # <-- RECENTLY COMMENTED THIS SECTION OUT -->
+    # if not os.path.exists(app.config['DATABASE']):
+    #     db.init_db()
     from . import auth
     app.register_blueprint(auth.bp)
     from . import gcp
@@ -41,7 +42,6 @@ def create_app(test_config=None):
     # app.register_blueprint(blog.bp)
     # app.add_url_rule('/', endpoint='index')
     app.add_url_rule('/', endpoint='gcp')
-
 
     @app.route('/debug')
     def debug():
