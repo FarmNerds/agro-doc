@@ -11,8 +11,8 @@
         value="{{ request.form['title'] or post['title'] }}" required>
       <img src="{{ url_for('static', filename='uploads/images/' + post['img_path']) }}" alt="{{ post['title'] }}" style="max-width: 70%; height: auto;">
 
-      <label for="gcp_output">GCP Output</label>
-      <textarea name="gcp_output" id="gcp_output">{{ request.form['gcp_output'] or post['gcp_output'] }}</textarea>
+      <label for="ocr_output">GCP Output</label>
+      <textarea name="ocr_output" id="ocr_output">{{ request.form['ocr_output'] or post['ocr_output'] }}</textarea>
       <input type="submit" value="Save">
     </form>
     <hr>

@@ -27,7 +27,7 @@
       </header>    
       <img src="{{ url_for('static', filename='uploads/images/' + post['img_path']) }}" alt="{{ post['title'] }}" style="max-width: 100%; height: auto;">
       <h4>GCP Output</h4>
-      <p class="gcp_output">{{ post['gcp_output'] }}</p>
+      <p class="ocr_output">{{ post['ocr_output'] }}</p>
     </article>
     {% if not loop.last %}
       <hr>

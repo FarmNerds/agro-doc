@@ -1,8 +1,6 @@
-from flask import (
-    Blueprint, flash, g, redirect, render_template, request, url_for
-)
+from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 from werkzeug.exceptions import abort
-from werkzeug.utils import secure_filename  
+from werkzeug.utils import secure_filename
 from flaskr.auth import login_required
 from flaskr.db import get_db
 from google.cloud import vision
@@ -11,14 +9,14 @@ import os
 
 def detect_document(path):
     """Detects document features in an image."""
-    
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = ".creds/farmdocs-7e1092c19709.json"
+
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ".creds/farmdocs-7e1092c19709.json"
     client = vision.ImageAnnotatorClient()
     with open(path, "rb") as image_file:
         content = image_file.read()
     image = vision.Image(content=content)
     response = client.document_text_detection(image=image)
-    words = "" # in string format
+    words = ""  # in string format
     for page in response.full_text_annotation.pages:
         for block in page.blocks:
             print(f"\nBlock confidence: {block.confidence}\n")
@@ -46,58 +44,63 @@ def detect_document(path):
     return words
 
 
-bp = Blueprint('gcp', __name__)
-UPLOAD_FOLDER = 'flaskr/static/uploads/images'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+bp = Blueprint("gcp", __name__)
+UPLOAD_FOLDER = "flaskr/static/uploads/images"
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 # @bp.route('/', methods=['GET', 'POST'])
-@bp.route('/' , methods=['GET', 'POST'])
+@bp.route("/", methods=["GET", "POST"])
 def index():
-    search = request.form.get('search', '')
+    search = request.form.get("search", "")
     db = get_db()
     if not search:
         posts = db.execute(
-            'SELECT p.id, title, img_path, gcp_output, created, author_id, username'
-            ' FROM post p JOIN user u ON p.author_id = u.id'
-            ' ORDER BY created DESC'
+            "SELECT p.id, title, img_path, ocr_output, created, author_id, username"
+            " FROM post p JOIN user u ON p.author_id = u.id"
+            " ORDER BY created DESC"
         ).fetchall()
 
     else:
         query = """
-            SELECT p.id, title, img_path, gcp_output, created, author_id, username
+            SELECT p.id, title, img_path, ocr_output, created, author_id, username
             FROM post p 
             JOIN user u ON p.author_id = u.id
-            WHERE title LIKE :search OR gcp_output LIKE :search
+            WHERE title LIKE :search OR ocr_output LIKE :search
             OR img_path LIKE :file_search
             ORDER BY created DESC
         """
         # Handle file search for various extensions
         if search.startswith("*."):
             file_extension = search[2:]  # Extract file extension (e.g., "jpg", "png")
-            file_search = f'%.{file_extension}'
+            file_search = f"%.{file_extension}"
         else:
-            file_search = f'%{search}%'
-        posts = db.execute(query, {'search': f'%{search}%', 'file_search': file_search}).fetchall()  
-        
-    return render_template('gcp/index.html', posts=posts)
+            file_search = f"%{search}%"
+        posts = db.execute(
+            query, {"search": f"%{search}%", "file_search": file_search}
+        ).fetchall()
 
-@bp.route('/create', methods=('GET', 'POST'))
+    return render_template("gcp/index.html", posts=posts)
+
+
+@bp.route("/create", methods=("GET", "POST"))
 @login_required
 def create():
-    if request.method == 'POST':
-        title = request.form['title']
-        file = request.files['image']
+    if request.method == "POST":
+        title = request.form["title"]
+        file = request.files["image"]
         error = None
 
         if not title:
-            error = 'Title is required.'
-        elif file.filename == '':
-            error = 'No selected file.'
+            error = "Title is required."
+        elif file.filename == "":
+            error = "No selected file."
         elif not allowed_file(file.filename):
-            error = 'Invalid file type.'
+            error = "Invalid file type."
 
         if error is not None:
             flash(error)
@@ -107,67 +110,75 @@ def create():
             img_path = filename
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
             root_img_path = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(root_img_path)  # Save the file in the flaskr/static/uploads/images directory
-            gcp_output = detect_document(root_img_path)
+            file.save(
+                root_img_path
+            )  # Save the file in the flaskr/static/uploads/images directory
+            ocr_output = detect_document(root_img_path)
 
             db = get_db()
-            db.execute( 
-                'INSERT INTO post (title, img_path, gcp_output, author_id)'
-                ' VALUES (?, ?, ?, ?)',
-                (title, img_path, gcp_output, g.user['id'])
+            db.execute(
+                "INSERT INTO post (title, img_path, ocr_output, author_id)"
+                " VALUES (?, ?, ?, ?)",
+                (title, img_path, ocr_output, g.user["id"]),
             )
             db.commit()
-            return redirect(url_for('gcp.index'))
+            return redirect(url_for("gcp.index"))
 
-    return render_template('gcp/create.html')
+    return render_template("gcp/create.html")
+
 
 def get_post(id, check_author=True):
-    post = get_db().execute(
-        'SELECT p.id, title, img_path, gcp_output, created, author_id, username'
-        ' FROM post p JOIN user u ON p.author_id = u.id'
-        ' WHERE p.id = ?',
-        (id,)
-    ).fetchone()
+    post = (
+        get_db()
+        .execute(
+            "SELECT p.id, title, img_path, ocr_output, created, author_id, username"
+            " FROM post p JOIN user u ON p.author_id = u.id"
+            " WHERE p.id = ?",
+            (id,),
+        )
+        .fetchone()
+    )
 
     if post is None:
         abort(404, f"Post id {id} doesn't exist.")
 
-    if check_author and post['author_id'] != g.user['id']:
+    if check_author and post["author_id"] != g.user["id"]:
         abort(403)
 
     return post
 
-@bp.route('/<int:id>/update', methods=('GET', 'POST'))
+
+@bp.route("/<int:id>/update", methods=("GET", "POST"))
 @login_required
 def update(id):
     post = get_post(id)
 
-    if request.method == 'POST':
-        title = request.form['title']
-        gcp_output = request.form['gcp_output']
+    if request.method == "POST":
+        title = request.form["title"]
+        ocr_output = request.form["ocr_output"]
         error = None
 
         if not title:
-            error = 'Title is required.'
+            error = "Title is required."
         if error is not None:
             flash(error)
         else:
             db = get_db()
             db.execute(
-                'UPDATE post SET title = ?, gcp_output = ?'
-                ' WHERE id = ?',
-                (title, gcp_output, id)
+                "UPDATE post SET title = ?, ocr_output = ? WHERE id = ?",
+                (title, ocr_output, id),
             )
             db.commit()
-            return redirect(url_for('gcp.index'))
+            return redirect(url_for("gcp.index"))
 
-    return render_template('gcp/update.html', post=post)
+    return render_template("gcp/update.html", post=post)
 
-@bp.route('/<int:id>/delete', methods=('POST',))
+
+@bp.route("/<int:id>/delete", methods=("POST",))
 @login_required
 def delete(id):
     get_post(id)
     db = get_db()
-    db.execute('DELETE FROM post WHERE id = ?', (id,))
+    db.execute("DELETE FROM post WHERE id = ?", (id,))
     db.commit()
-    return redirect(url_for('gcp.index'))
+    return redirect(url_for("gcp.index"))
