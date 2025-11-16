@@ -3,17 +3,13 @@ from werkzeug.exceptions import abort
 from werkzeug.utils import secure_filename
 from flaskr.auth import login_required
 from flaskr.db import get_db
+import os
+from flaskr.handwriting_reader.gcp import GoogleCloudVisionHR
 
-from abc import ABC, abstractmethod
-
-
-class OCR(ABC):
-    @abstractmethod
-    def read_text(self, path):
-        """Reads text from image"""
+handwriting_reader = GoogleCloudVisionHR()
 
 
-bp = Blueprint("gcp", __name__)
+bp = Blueprint("ocr", __name__)
 UPLOAD_FOLDER = "flaskr/static/uploads/images"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
@@ -54,7 +50,7 @@ def index():
             query, {"search": f"%{search}%", "file_search": file_search}
         ).fetchall()
 
-    return render_template("gcp/index.html", posts=posts)
+    return render_template("ocr/index.html", posts=posts)
 
 
 @bp.route("/create", methods=("GET", "POST"))
@@ -83,7 +79,7 @@ def create():
             file.save(
                 root_img_path
             )  # Save the file in the flaskr/static/uploads/images directory
-            ocr_output = detect_document(root_img_path)
+            ocr_output = handwriting_reader.read_text(root_img_path)
 
             db = get_db()
             db.execute(
@@ -92,9 +88,9 @@ def create():
                 (title, img_path, ocr_output, g.user["id"]),
             )
             db.commit()
-            return redirect(url_for("gcp.index"))
+            return redirect(url_for("ocr.index"))
 
-    return render_template("gcp/create.html")
+    return render_template("ocr/create.html")
 
 
 def get_post(id, check_author=True):
@@ -139,9 +135,9 @@ def update(id):
                 (title, ocr_output, id),
             )
             db.commit()
-            return redirect(url_for("gcp.index"))
+            return redirect(url_for("ocr.index"))
 
-    return render_template("gcp/update.html", post=post)
+    return render_template("ocr/update.html", post=post)
 
 
 @bp.route("/<int:id>/delete", methods=("POST",))
@@ -151,4 +147,4 @@ def delete(id):
     db = get_db()
     db.execute("DELETE FROM post WHERE id = ?", (id,))
     db.commit()
-    return redirect(url_for("gcp.index"))
+    return redirect(url_for("ocr.index"))
