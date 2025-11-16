@@ -3,45 +3,14 @@ from werkzeug.exceptions import abort
 from werkzeug.utils import secure_filename
 from flaskr.auth import login_required
 from flaskr.db import get_db
-from google.cloud import vision
-import os
+
+from abc import ABC, abstractmethod
 
 
-def detect_document(path):
-    """Detects document features in an image."""
-
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ".creds/farmdocs-7e1092c19709.json"
-    client = vision.ImageAnnotatorClient()
-    with open(path, "rb") as image_file:
-        content = image_file.read()
-    image = vision.Image(content=content)
-    response = client.document_text_detection(image=image)
-    words = ""  # in string format
-    for page in response.full_text_annotation.pages:
-        for block in page.blocks:
-            print(f"\nBlock confidence: {block.confidence}\n")
-            for paragraph in block.paragraphs:
-                print("Paragraph confidence: {}".format(paragraph.confidence))
-                for word in paragraph.words:
-                    word_text = "".join([symbol.text for symbol in word.symbols])
-                    print(
-                        "Word text: {} (confidence: {})".format(
-                            word_text, word.confidence
-                        )
-                    )
-                    words += word_text + " "
-                    for symbol in word.symbols:
-                        print(
-                            "\tSymbol: {} (confidence: {})".format(
-                                symbol.text, symbol.confidence
-                            )
-                        )
-    if response.error.message:
-        raise Exception(
-            "{}\nFor more info on error messages, check: "
-            "https://cloud.google.com/apis/design/errors".format(response.error.message)
-        )
-    return words
+class OCR(ABC):
+    @abstractmethod
+    def read_text(self, path):
+        """Reads text from image"""
 
 
 bp = Blueprint("gcp", __name__)
@@ -76,7 +45,8 @@ def index():
         """
         # Handle file search for various extensions
         if search.startswith("*."):
-            file_extension = search[2:]  # Extract file extension (e.g., "jpg", "png")
+            # Extract file extension (e.g., "jpg", "png")
+            file_extension = search[2:]
             file_search = f"%.{file_extension}"
         else:
             file_search = f"%{search}%"
