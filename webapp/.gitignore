@@ -1,2 +1,4 @@
 farmdocs-7e1092c19709.json
 .env
+**/.output
+**/__pycache__/
