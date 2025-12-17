@@ -36,12 +36,12 @@ def create_app(test_config=None):
     #     db.init_db()
     from . import auth
     app.register_blueprint(auth.bp)
-    from . import gcp
-    app.register_blueprint(gcp.bp)
+    from . import ocr_backend
+    app.register_blueprint(ocr_backend.bp)
     # from . import blog
     # app.register_blueprint(blog.bp)
     # app.add_url_rule('/', endpoint='index')
-    app.add_url_rule('/', endpoint='gcp')
+    app.add_url_rule('/', endpoint='ocr')
 
     @app.route('/debug')
     def debug():

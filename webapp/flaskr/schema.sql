@@ -13,6 +13,6 @@ CREATE TABLE post (
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   title TEXT NOT NULL,
   img_path TEXT NOT NULL,
-  gcp_output TEXT NOT NULL,
+  ocr_output TEXT NOT NULL,
   FOREIGN KEY (author_id) REFERENCES user (id)
 );
